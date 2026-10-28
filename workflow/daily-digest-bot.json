@@ -1,0 +1,336 @@
+{
+  "name": "Daily Personal Digest Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        64,
+        432
+      ],
+      "id": "5f37a8ed-8b35-4338-810c-33de7dddf285",
+      "name": "Every day at 08:00 (Baku)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c0000001-0000-4000-8000-000000000001",
+              "name": "chat_id",
+              "value": "YOUR_CHAT_ID",
+              "type": "string"
+            },
+            {
+              "id": "c0000001-0000-4000-8000-000000000002",
+              "name": "city",
+              "value": "Baku",
+              "type": "string"
+            },
+            {
+              "id": "c0000001-0000-4000-8000-000000000003",
+              "name": "latitude",
+              "value": 40.4093,
+              "type": "number"
+            },
+            {
+              "id": "c0000001-0000-4000-8000-000000000004",
+              "name": "longitude",
+              "value": 49.8671,
+              "type": "number"
+            },
+            {
+              "id": "c0000001-0000-4000-8000-000000000005",
+              "name": "news_feed_url",
+              "value": "https://feeds.bbci.co.uk/news/world/rss.xml",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        288,
+        432
+      ],
+      "id": "0b50f769-e233-47fe-b575-4a119a38cc26",
+      "name": "Config"
+    },
+    {
+      "parameters": {
+        "url": "https://api.open-meteo.com/v1/forecast",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "latitude",
+              "value": "={{ $json.latitude }}"
+            },
+            {
+              "name": "longitude",
+              "value": "={{ $json.longitude }}"
+            },
+            {
+              "name": "current",
+              "value": "temperature_2m,wind_speed_10m,weather_code"
+            },
+            {
+              "name": "daily",
+              "value": "temperature_2m_max,temperature_2m_min"
+            },
+            {
+              "name": "forecast_days",
+              "value": "1"
+            },
+            {
+              "name": "timezone",
+              "value": "Asia/Baku"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        528,
+        224
+      ],
+      "id": "658477ce-ba55-4e5d-a518-44132c474b16",
+      "name": "Get weather",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.news_feed_url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        528,
+        432
+      ],
+      "id": "76982fff-ee32-460a-8300-4a5727af516a",
+      "name": "Get news",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1I9R0fRrFyafLG6IDymWKrGRDYg-cguv8KaUJ-Ww3Koc",
+          "mode": "list",
+          "cachedResultName": "todo spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1I9R0fRrFyafLG6IDymWKrGRDYg-cguv8KaUJ-Ww3Koc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1I9R0fRrFyafLG6IDymWKrGRDYg-cguv8KaUJ-Ww3Koc/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        528,
+        624
+      ],
+      "id": "ed0cdbfe-9714-4559-8d6e-7cc860b7ce69",
+      "name": "Read to-dos",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ZTRZppOaMFVCUFso",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        784,
+        432
+      ],
+      "id": "14cfef69-4cd2-4aa4-9c7c-39d4903002a1",
+      "name": "Wait for all sources"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Builds ONE Markdown message from the three sources.\n// The Merge node before this one only waits until all three branches have finished;\n// the data is read from each source node by name, so the order of merged items does not matter.\n\n// ---- Helpers ----\n// Telegram legacy Markdown treats _ * ` [ as formatting, so text from APIs/sheets is escaped.\nconst esc = (s) => String(s ?? '').replace(/([_*`\\[])/g, '\\\\$1');\n\n// Inside link text, escaping is not reliable, so formatting characters are removed instead.\nconst linkText = (s) => String(s ?? '').replace(/[_*`\\[\\]]/g, ' ').replace(/\\s+/g, ' ').trim();\n\nconst WEATHER = {\n  0: ['☀️', 'Clear sky'], 1: ['🌤', 'Mainly clear'], 2: ['⛅', 'Partly cloudy'], 3: ['☁️', 'Overcast'],\n  45: ['🌫', 'Fog'], 48: ['🌫', 'Fog'],\n  51: ['🌦', 'Light drizzle'], 53: ['🌦', 'Drizzle'], 55: ['🌦', 'Heavy drizzle'],\n  61: ['🌧', 'Light rain'], 63: ['🌧', 'Rain'], 65: ['🌧', 'Heavy rain'],\n  71: ['🌨', 'Light snow'], 73: ['🌨', 'Snow'], 75: ['❄️', 'Heavy snow'],\n  80: ['🌦', 'Rain showers'], 81: ['🌧', 'Rain showers'], 82: ['⛈', 'Violent showers'],\n  95: ['⛈', 'Thunderstorm'], 96: ['⛈', 'Thunderstorm with hail'], 99: ['⛈', 'Thunderstorm with hail'],\n};\n\nconst config = $('Config').first().json;\nconst today = $now.setZone('Asia/Baku').toFormat('cccc, d LLLL yyyy');\n\n// ---- Weather ----\nlet weatherText = '_Weather is unavailable right now._';\nconst w = $('Get weather').first()?.json;\nif (w && w.current) {\n  const [icon, label] = WEATHER[w.current.weather_code] ?? ['🌡', 'Weather'];\n  const u = w.current_units ?? {};\n  const max = w.daily?.temperature_2m_max?.[0];\n  const min = w.daily?.temperature_2m_min?.[0];\n  weatherText =\n    `${icon} ${label}, ${w.current.temperature_2m}${u.temperature_2m ?? '°C'}\\n` +\n    (max !== undefined ? `High ${max}° / Low ${min}°\\n` : '') +\n    `Wind ${w.current.wind_speed_10m} ${u.wind_speed_10m ?? 'km/h'}`;\n}\n\n// ---- News (first 3 headlines) ----\nconst news = $('Get news').all()\n  .map(i => i.json)\n  .filter(n => n.title && n.link)\n  .slice(0, 3);\nconst newsText = news.length\n  ? news.map((n, i) => `${i + 1}. [${linkText(n.title)}](${n.link})`).join('\\n')\n  : '_No headlines available right now._';\n\n// ---- To-dos (rows not marked as done) ----\nconst isDone = (v) => ['yes', 'true', 'done', '1'].includes(String(v ?? '').trim().toLowerCase());\nconst todos = $('Read to-dos').all()\n  .map(i => i.json)\n  .filter(t => t.task && !isDone(t.done));\nconst todoText = todos.length\n  ? todos.map(t => `• ${esc(t.task)}${t.due ? ` _(due ${esc(t.due)})_` : ''}`).join('\\n')\n  : '_Nothing on your list today. Enjoy!_';\n\n// ---- Message ----\nconst text =\n  `*Good morning!* 👋\\n${today}\\n\\n` +\n  `*Weather in ${esc(config.city)}*\\n${weatherText}\\n\\n` +\n  `*Top headlines*\\n${newsText}\\n\\n` +\n  `*Your to-dos*\\n${todoText}`;\n\nreturn [{ json: { text, chatId: config.chat_id } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        432
+      ],
+      "id": "12c87a03-2de7-46fe-b8d9-240a50b225be",
+      "name": "Build digest message"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1264,
+        432
+      ],
+      "id": "96bc90c3-45c7-4693-8e91-1f401ac48011",
+      "name": "Send digest",
+      "webhookId": "a1f0c3d2-1111-4c6e-9a01-000000000009",
+      "credentials": {
+        "telegramApi": {
+          "id": "ccT3Zy8a870t3qyR",
+          "name": "Telegram account 3"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every day at 08:00 (Baku)": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Get weather",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get news",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read to-dos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get weather": {
+      "main": [
+        [
+          {
+            "node": "Wait for all sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get news": {
+      "main": [
+        [
+          {
+            "node": "Wait for all sources",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Read to-dos": {
+      "main": [
+        [
+          {
+            "node": "Wait for all sources",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Wait for all sources": {
+      "main": [
+        [
+          {
+            "node": "Build digest message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build digest message": {
+      "main": [
+        [
+          {
+            "node": "Send digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Baku",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": -1,
+    "availableInMCP": false
+  },
+  "versionId": "1970cac5-8de7-4bb8-834c-328bdf481903",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f50705e54022d3ad5fb8d0695bbe6a21883ee8b19c391050c1ae88c5e2388a51"
+  },
+  "nodeGroups": [],
+  "id": "YzL9YT3aTnNiwwh2",
+  "tags": []
+}
